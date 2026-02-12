@@ -39,8 +39,10 @@ export const signup = async (req, res) => {
       password: hashedPassword,
     });
 
-    // 5. Generate JWT
-    generateToken(newUser._id, res);
+    if (newUser) {
+      const savedUser = await newUser.save();
+      generateToken(savedUser._id, res);
+    }
 
     // 6. Response
     res.status(201).json({
