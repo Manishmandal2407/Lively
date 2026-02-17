@@ -10,8 +10,8 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessageLoading: false,
-  isSoundEnabled: localStorage.getItem("isSoundEnabled") === true,
-  
+  isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
+
   toggleSound: () => {
     localStorage.setItem("isSoundEnabled", !get().isSoundEnabled)
     set({isSoundEnabled:!get().isSoundEnabled})
@@ -34,6 +34,8 @@ export const useChatStore = create((set, get) => ({
      set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/chats");
+          console.log("Chats API response:", res.data);
+
       set({ chats: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
@@ -42,3 +44,4 @@ export const useChatStore = create((set, get) => ({
     }
   },
 }))
+
