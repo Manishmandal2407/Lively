@@ -10,26 +10,45 @@ import { ENV } from "./lib/env.js";
 import { app, server } from "./lib/socket.js";
 
 const __dirname = path.resolve();
-
 const PORT = ENV.PORT || 3000;
 
-app.use(express.json({ limit: "5mb" })); // req.body
-app.use(cors({ origin: ENV.CLIENT_URL, credentials: true }));
+// ================= MIDDLEWARE =================
+app.use(express.json({ limit: "5mb" }));
+app.use(
+  cors({
+    origin: ENV.CLIENT_URL,
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 
+// ================= ROUTES =================
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
-// make ready for deployment
+// ================= PRODUCTION BUILD =================
 if (ENV.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-  app.get("*", (_, res) => {
-    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
 
-server.listen(PORT, () => {
-  console.log("Server running on port: " + PORT);
-  connectDB();
-});
+// ================= START SERVER =================
+const startServer = async () => {
+  try {
+    // 🔑 CONNECT DATABASE FIRST
+    await connectDB();
+
+    // 🚀 START HTTP + SOCKET SERVER
+    server.listen(PORT, () => {
+      console.log(`Server running on port: ${PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();
