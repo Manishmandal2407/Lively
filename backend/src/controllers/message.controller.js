@@ -2,10 +2,13 @@ import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import mongoose from "mongoose";
 
 /**
  * GET all contacts except logged-in user
  */
+
+
 export const getAllContacts = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
@@ -20,6 +23,7 @@ export const getAllContacts = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 /**
  * GET messages between logged-in user and another user
@@ -51,42 +55,46 @@ export const getMessagesByUserId = async (req, res) => {
  * SEND a message (text or image)
  */
 export const sendMessage = async (req, res) => {
+  console.log("🔥 SEND MESSAGE API HIT");
+
   try {
-    const senderId = req.user._id;
+    const senderId = req.user?._id;
     const { id: receiverId } = req.params;
     const { text, image } = req.body;
 
-    // Basic validations
-    if (!receiverId) {
-      return res.status(400).json({ message: "Receiver ID is required" });
+    console.log("SENDER:", senderId);
+    console.log("RECEIVER:", receiverId);
+    console.log("BODY:", req.body);
+
+    // 🔴 HARD VALIDATIONS
+    if (!senderId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!receiverId || !mongoose.Types.ObjectId.isValid(receiverId)) {
+      return res.status(400).json({ message: "Invalid receiverId" });
     }
 
     if (!text?.trim() && !image) {
-      return res.status(400).json({
-        message: "Message text or image is required",
-      });
+      return res.status(400).json({ message: "Text or image required" });
     }
 
-    if (senderId.toString() === receiverId) {
-      return res.status(400).json({ message: "You cannot message yourself" });
+    if (senderId.toString() === receiverId.toString()) {
+      return res.status(400).json({ message: "Cannot message yourself" });
     }
 
-    // Check receiver exists
     const receiverExists = await User.exists({ _id: receiverId });
     if (!receiverExists) {
       return res.status(404).json({ message: "Receiver not found" });
     }
 
-    // Upload image if present
     let imageUrl = null;
     if (image) {
-      const upload = await cloudinary.uploader.upload(image, {
-        folder: "chat-images",
-      });
+      const upload = await cloudinary.uploader.upload(image);
       imageUrl = upload.secure_url;
     }
 
-    // Save message
+    // 🔥 DATABASE SAVE (THIS MUST RUN)
     const message = await Message.create({
       senderId,
       receiverId,
@@ -94,7 +102,9 @@ export const sendMessage = async (req, res) => {
       image: imageUrl,
     });
 
-    // Emit real-time event
+    console.log("✅ MESSAGE SAVED:", message._id);
+
+    // 🔌 SOCKET EMIT
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", message);
@@ -102,7 +112,7 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(message);
   } catch (error) {
-    console.error("sendMessage error:", error);
+    console.error("❌ SEND MESSAGE ERROR:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
