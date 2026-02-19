@@ -20,8 +20,11 @@
 ## cd backend
 ## npm install
 ## npm run dev
+http://localhost:3000/
+
 
 # 💻 Run the Frontend
 ## cd frontend
 ## npm install
 ## npm run dev
+http://localhost:5173/
